@@ -1,4 +1,14 @@
-This is a minimal scheduler written with sched-ext in C. This scheduler uses a global scheduling queue from which every CPU gets its tasks to run for a certain time slice. The scheduler order is First-In-First-Out. So it essentially implements a [round-robin scheduler](https://en.wikipedia.org/wiki/Round-robin_scheduling).
+Minimal Scheduler
+=================
+
+This is a minimal scheduler written with sched-ext in C. 
+This scheduler uses a global scheduling queue from which 
+every CPU gets its tasks to run for a certain time slice. 
+The scheduler order is First-In-First-Out. So it essentially implements a [round-robin scheduler](https://en.wikipedia.org/wiki/Round-robin_scheduling):
+
+![Round Robin Diagram](./img/round_robin.png)
+
+This just covers the basics, to learn more, look no further than the [scx wiki](https://github.com/sched-ext/scx/wiki).
 
 Requirements
 ------------
@@ -89,6 +99,10 @@ struct sched_ext_ops sched_ops = {
 char _license[] SEC("license") = "GPL";
 ```
 
+We can visualize the interaction of all methods in the scheduler with the following diagram:
+
+![Scheduler Diagram](./img/scheduling.png)
+
 Run the [`build.sh`](./build.sh) script to generate the `vmlinux.h` BPF header
 and then compile the scheduler code to BPF bytecode:
 
@@ -149,7 +163,8 @@ Try for example to create two scheduling queues, with one scheduling queue only
 for a process with a specific id (Hint: `task_struct#tgid` gives you the process id)
 which is scheduled on half of your CPUs.
 
-
+To do even more, you can look at the collected resources in the [scx wiki](https://github.com/sched-ext/scx/wiki),
+especially the well documented [sched-ext code in the kernel](https://github.com/torvalds/linux/blob/master/kernel/sched/ext.c).
 
 License
 -------
