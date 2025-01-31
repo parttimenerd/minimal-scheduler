@@ -2,6 +2,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#define BPF_FOR_EACH_ITER (&___it)
+
 // Define a shared Dispatch Queue (DSQ) ID
 #define SHARED_DSQ_ID 0
 
@@ -38,7 +40,17 @@ int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
 
 // Dispatch a task from the shared DSQ to a CPU
 int BPF_STRUCT_OPS(sched_dispatch, s32 cpu, struct task_struct *prev) {
-	scx_bpf_dsq_move_to_local(SHARED_DSQ_ID);
+    struct task_struct *p;
+	s32 random = bpf_get_prandom_u32() % scx_bpf_dsq_nr_queued(SHARED_DSQ_ID);
+    bpf_for_each(scx_dsq, p, SHARED_DSQ_ID, 0) {
+        random = random - 1;
+        if (random <= 0) {
+            if (scx_bpf_dispatch_from_dsq(BPF_FOR_EACH_ITER, p, 
+            SCX_DSQ_LOCAL_ON | cpu, SCX_ENQ_PREEMPT)) {
+                return 0;
+            }
+        }
+    };
     return 0;
 }
 
@@ -53,7 +65,7 @@ struct sched_ext_ops sched_ops = {
     .dispatch  = (void *)sched_dispatch,
     .init      = (void *)sched_init,
     .flags     = SCX_OPS_ENQ_LAST | SCX_OPS_KEEP_BUILTIN_IDLE,
-    .name      = "minimal_scheduler"
+    .name      = "lottery_scheduler"
 };
 
 // License for the BPF program

@@ -38,10 +38,10 @@ int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
 
 // Dispatch a task from the shared DSQ to a CPU
 int BPF_STRUCT_OPS(sched_dispatch, s32 cpu, struct task_struct *prev) {
+struct task_struct *p;
 	scx_bpf_dsq_move_to_local(SHARED_DSQ_ID);
     return 0;
 }
-
 
 
 
@@ -53,7 +53,7 @@ struct sched_ext_ops sched_ops = {
     .dispatch  = (void *)sched_dispatch,
     .init      = (void *)sched_init,
     .flags     = SCX_OPS_ENQ_LAST | SCX_OPS_KEEP_BUILTIN_IDLE,
-    .name      = "minimal_scheduler"
+    .name      = "fifo_scheduler"
 };
 
 // License for the BPF program
