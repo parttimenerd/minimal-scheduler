@@ -1,4 +1,4 @@
-#include <vmlinux.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
@@ -12,6 +12,17 @@
     SEC("struct_ops.s/"#name)							      \
     BPF_PROG(name, ##args)
 
+// We use the new names from 6.13 to avoid confusion
+#define scx_bpf_dsq_insert scx_bpf_dispatch
+#define scx_bpf_dsq_insert_vtime scx_bpf_dispatch_vtime
+#define scx_bpf_dsq_move_to_local scx_bpf_consume
+#define scx_bpf_dsq_move scx_bpf_dispatch_from_dsq
+#define scx_bpf_dsq_move_vtime scx_bpf_dispatch_vtime_from_dsq
+
+
+
+
+
 // Initialize the scheduler by creating a shared dispatch queue (DSQ)
 s32 BPF_STRUCT_OPS_SLEEPABLE(sched_init) {
     return scx_bpf_create_dsq(SHARED_DSQ_ID, -1);
@@ -21,15 +32,19 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(sched_init) {
 int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
     // Calculate the time slice for the task based on the number of tasks in the queue
     u64 slice = 5000000u / scx_bpf_dsq_nr_queued(SHARED_DSQ_ID);
-    scx_bpf_dispatch(p, SHARED_DSQ_ID, slice, enq_flags);
+    scx_bpf_dsq_insert(p, SHARED_DSQ_ID, slice, enq_flags);
     return 0;
 }
 
 // Dispatch a task from the shared DSQ to a CPU
 int BPF_STRUCT_OPS(sched_dispatch, s32 cpu, struct task_struct *prev) {
-    scx_bpf_consume(SHARED_DSQ_ID);
+	scx_bpf_dsq_move_to_local(SHARED_DSQ_ID);
     return 0;
 }
+
+
+
+
 
 // Define the main scheduler operations structure (sched_ops)
 SEC(".struct_ops.link")
