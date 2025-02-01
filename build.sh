@@ -14,4 +14,3 @@ fi
 
 # Compile the scheduler
 clang -target bpf -g -O2 -c $BPF_FILE -o ${BPF_FILE}.o -I.
-chmod +x 0999 ${BPF_FILE}.o

@@ -39,16 +39,13 @@ Usage
 In short, we only need two steps:
 
 ```bash
-# build the scheduler binary
-./build.sh
-
-# start the scheduler
-sudo ./start.sh
+# build and start the scheduler
+./start.sh
 
 # do something ...
 
 # stop the scheduler
-sudo ./stop.sh
+./stop.sh
 ```
 
 I'll show you later what's in these scripts, but first, let's get to the scheduler code:
@@ -139,15 +136,15 @@ We can visualize the interaction of all functions in the scheduler with the foll
 ![Scheduler Diagram](https://github.com/parttimenerd/minimal-scheduler/raw/main/img/scheduling.png)
 
 Now, after you've seen the code,
-run the [`build.sh`](https://github.com/parttimenerd/minimal-scheduler/blob/main/build.sh) script to generate the `vmlinux.h` BPF header
+run the [`start.sh`](https://github.com/parttimenerd/minimal-scheduler/blob/main/start.sh) script to generate the `vmlinux.h` BPF header
 and then compile the scheduler code to BPF bytecode:
 
 ```bash
 bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
-clang -target bpf -g -O2 -c sched_ext.bpf.c -o sched_ext.bpf.o -I. 
+clang -target bpf -g -O2 -c sched_ext.bpf.c -o sched_ext.bpf.o -I.
 ```
 
-Then run the [`start.sh`](https://github.com/parttimenerd/minimal-scheduler/blob/main/start.sh) script as a root user to attach the scheduler using the `bpftool`:
+And attach the scheduler using the `bpftool`:
 ```bash
 bpftool struct_ops register sched_ext.bpf.o /sys/fs/bpf/sched_ext
 ```
@@ -169,6 +166,13 @@ And by checking `dmesg | tail`:
 ```
 
 Play around with your system and see how it behaves.
+
+There are three available schedulers:
+
+- [`fifo.bpf.c`](https://github.com/parttimenerd/minimal-scheduler/blob/main/fifo.bpf.c) (also `sched_ext.bpf.c`) the before mentioned FIFO scheduler
+- [`lotterly.bpf.c`](https://github.com/parttimenerd/minimal-scheduler/blob/main/lottery.bpf.c) a lottery scheduler as presented on [my blog](https://mostlynerdless.de/blog/2024/12/17/hello-ebpf-writing-a-lottery-scheduler-in-java-with-sched-ext-17/)
+
+Try them via `./start.sh [scheduler file name]`.
 
 If you're done, you can detach the scheduler by running the [`stop.sh`](https://github.com/parttimenerd/minimal-scheduler/blob/main/stop.sh) script
 using root privileges. This removes the `/sys/fs/bpf/sched_ext/sched_ops` file.
