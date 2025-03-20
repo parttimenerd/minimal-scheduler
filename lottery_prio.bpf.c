@@ -1,3 +1,5 @@
+// A lottery scheduler that respects scheduling priorities
+
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -11,7 +13,7 @@
     SEC("struct_ops/"#name)	BPF_PROG(name, ##args)
 
 #define BPF_STRUCT_OPS_SLEEPABLE(name, args...)	\
-    SEC("struct_ops.s/"#name)							      \
+    SEC("struct_ops.s/"#name)				    \
     BPF_PROG(name, ##args)
 
 // We use the new names from 6.13 to make it more readable
@@ -41,14 +43,20 @@ int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
 // Dispatch a task from the shared DSQ to a CPU
 int BPF_STRUCT_OPS(sched_dispatch, s32 cpu, struct task_struct *prev) {
     struct task_struct *p;
-	s32 random = bpf_get_prandom_u32() % scx_bpf_dsq_nr_queued(SHARED_DSQ_ID);
+
+    u32 weight_sum = 0;
     bpf_for_each(scx_dsq, p, SHARED_DSQ_ID, 0) {
-        random = random - 1;
-        if (random <= 0 && 
-          bpf_cpumask_test_cpu(cpu, p->cpus_ptr) &&
+        weight_sum += p->scx.weight;
+    };
+
+	s32 random = bpf_get_prandom_u32() % weight_sum;
+    bpf_for_each(scx_dsq, p, SHARED_DSQ_ID, 0) {
+        random = random - p->scx.weight;
+        if (random <= 0 &&
+          bpf_cpumask_test_cpu(cpu, p->cpus_ptr) && 
           scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p, 
             SCX_DSQ_LOCAL_ON | cpu, SCX_ENQ_PREEMPT)) {
-            bpf_printk("Dispatched task %s to CPU %d", p->comm, cpu);
+            bpf_printk("Dispatched task %s to CPU %d, %d of %d", p->comm, cpu, p->scx.weight, weight_sum);
             return 0;
         }
     };
@@ -66,7 +74,7 @@ struct sched_ext_ops sched_ops = {
     .dispatch  = (void *)sched_dispatch,
     .init      = (void *)sched_init,
     .flags     = SCX_OPS_ENQ_LAST | SCX_OPS_KEEP_BUILTIN_IDLE,
-    .name      = "lottery_scheduler"
+    .name      = "lottery_prio_scheduler"
 };
 
 // License for the BPF program

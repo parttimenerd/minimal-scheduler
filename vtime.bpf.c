@@ -53,13 +53,12 @@ int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
     if ((isSmaller(vtime, vtime_now - SLICE))) {
         vtime = vtime_now - SLICE;
     }
-    scx_bpf_dispatch_vtime(p, SHARED_DSQ_ID, SLICE, vtime, enq_flags);
+    scx_bpf_dsq_insert_vtime(p, SHARED_DSQ_ID, SLICE, vtime, enq_flags);
     return 0;
 }
 
 // Dispatch a task from the shared DSQ to a CPU
 int BPF_STRUCT_OPS(sched_dispatch, s32 cpu, struct task_struct *prev) {
-struct task_struct *p;
 	scx_bpf_dsq_move_to_local(SHARED_DSQ_ID);
     return 0;
 }

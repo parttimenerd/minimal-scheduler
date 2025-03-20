@@ -153,6 +153,8 @@ The custom scheduler is now the scheduler of this system. You can check this
 by accessing the `/sys/kernel/sched_ext/root/ops` file:
 
 ```bash
+> ./scheduler.sh
+# or
 > cat /sys/kernel/sched_ext/root/ops
 minimal_scheduler
 ```
